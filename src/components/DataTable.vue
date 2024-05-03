@@ -6,15 +6,12 @@ import {
   useVueTable
 } from '@tanstack/vue-table'
 import moment from 'moment'
-import { MoreHorizontal, Settings2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
+import { Settings2, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-vue-next'
 import UserAction from './UserAction.vue'
 import { ref, onMounted, h, computed, watch } from 'vue'
-import { getPayments } from '@/helpers'
-import emitter from '@/helpers/emitter'
+import { useUtilstStore } from '@/store/utils.store'
 
-const data = ref([])
-const currentPage = ref(1)
-const totalPages = ref(0)
+const utilStore = useUtilstStore()
 const perPage = ref(6)
 const props = defineProps(['mode'])
 const emits = defineEmits(['submit-payment'])
@@ -23,9 +20,21 @@ const transactions = ref([])
 watch(
   () => props.mode,
   async (newValue, oldValue) => {
-    await getData(currentPage.value, perPage.value, newValue)
+    await getData(utilStore.currentPage, utilStore.perPage, newValue)
   }
 )
+
+const transactionsList = computed(() => {
+  return utilStore.transactionsList
+})
+
+const selectedTransactionIds = computed(() => {
+  return utilStore.selectedTransactionIds
+})
+
+const isLoading = computed(() => {
+  return utilStore.isLoading
+})
 
 const columns = [
   {
@@ -86,8 +95,8 @@ const columns = [
 
 const visiblePages = computed(() => {
   const maxButtons = 5
-  let startPage = Math.max(currentPage.value - Math.floor(maxButtons / 2), 1)
-  let endPage = Math.min(startPage + maxButtons - 1, totalPages.value)
+  let startPage = Math.max(utilStore.currentPage - Math.floor(maxButtons / 2), 1)
+  let endPage = Math.min(startPage + maxButtons - 1, utilStore.totalPages)
 
   // Adjust the starting page number if the range exceeds the total pages
   if (endPage - startPage + 1 < maxButtons) {
@@ -99,17 +108,15 @@ const visiblePages = computed(() => {
 
 const table = useVueTable({
   get data() {
-    return data.value
+    return transactionsList.value
   },
   columns,
   getCoreRowModel: getCoreRowModel(),
   getPaginationRowModel: getPaginationRowModel()
 })
 
-async function getData(page = 1, limit = 6, mode = 'all') {
-  const res = await getPayments(page, limit, props.mode.toLowerCase())
-  data.value = res.data
-  totalPages.value = res.last_page // Update total items
+async function getData(a, b, c) {
+  return await utilStore.getData(a, b, c)
 }
 
 function renderUserStatus(user) {
@@ -190,32 +197,32 @@ function renderPaymentStatus(payment) {
 }
 
 const isSelected = (id) => {
-  return transactions.value.includes(id)
+  return selectedTransactionIds.value.includes(id)
 }
 
 const handleSelect = (event) => {
-  emits('submit-payment', transactions.value)
+  utilStore.selectedTransactionIds = transactions.value
 }
 
 const goToPage = async (pageNumber) => {
   console.log(pageNumber)
-  if (pageNumber >= 1 && pageNumber <= totalPages.value && pageNumber !== '...') {
-    currentPage.value = pageNumber
-    await getData(currentPage.value, perPage.value)
+  if (pageNumber >= 1 && pageNumber <= utilStore.totalPages && pageNumber !== '...') {
+    utilStore.currentPage = pageNumber
+    await getData(utilStore.currentPage, utilStore.perPage)
   }
 }
 
 const previousPage = async () => {
-  if (currentPage.value > 1) {
-    currentPage.value--
-    await getData(currentPage.value, perPage.value)
+  if (utilStore.currentPage > 1) {
+    utilStore.currentPage--
+    await getData(utilStore.currentPage, utilStore.perPage)
   }
 }
 
 const nextPage = async () => {
-  if (currentPage.value < totalPages) {
-    currentPage.value++
-    await getData(currentPage.value, perPage.value)
+  if (utilStore.currentPage < utilStore.totalPages) {
+    utilStore.currentPage++
+    await getData(utilStore.currentPage, utilStore.perPage)
   }
 }
 
@@ -227,7 +234,7 @@ onMounted(async () => {
 <template>
   <div class="rounded-md">
     <div class="w-full flex justify-end py-5 px-3">
-      <button class="btn text-brand-success bg-[#EEEFF2]">
+      <button class="btn text-brand-success shadow-none bg-[#fafafa]">
         <Settings2 />
         Filters
       </button>
@@ -337,11 +344,12 @@ onMounted(async () => {
         </tr>
       </thead>
       <tbody>
-        <template v-if="table.getRowModel().rows?.length">
+        <template v-if="table.getRowModel().rows?.length && !isLoading">
           <tr
             v-for="row in table.getRowModel().rows"
             :key="row.id"
             :data-state="row.getIsSelected() ? 'selected' : undefined"
+            class="h-20"
           >
             <td>
               <input
@@ -359,9 +367,16 @@ onMounted(async () => {
             </td>
           </tr>
         </template>
-        <template v-else>
+        <template v-else-if="!table.getRowModel().rows?.length && !isLoading">
           <tr>
             <td :colSpan="columns.length" class="h-24 text-center">No results.</td>
+          </tr>
+        </template>
+        <template v-if="isLoading">
+          <tr v-for="i in 6">
+            <td v-for="(column, index) in columns.length" class="h-22 text-center">
+              <div v-if="index !== 0" class="skeleton h-4"></div>
+            </td>
           </tr>
         </template>
       </tbody>
@@ -391,7 +406,7 @@ onMounted(async () => {
             class="py-3 px-4 h-10 w-10 flex items-center justify-center border-0 shadow-none rounded-[8px]"
             :class="[
               { 'btn-disabled': pageNumber === '...' },
-              pageNumber === currentPage
+              pageNumber === utilStore.currentPage
                 ? 'bg-brand-success-light text-brand-success font-bold'
                 : 'bg-transparent text-[#A0AEC0]'
             ]"
