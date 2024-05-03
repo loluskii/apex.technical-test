@@ -65,10 +65,13 @@ module.exports = {
           'success-light': '#E7F7EF',
           'primary-light': '#F4F0FF',
           'warning-light': '#FEF7DC',
-          'danger-light': '#FFF0E6'
+          'danger-light': '#FFF0E6',
+          'red-light':'#FFF0F0',
+          input: '#FAFAFA',
+          red: '#FD6A6A'
         }
       }
     }
   },
-  plugins: [animate]
+  plugins: [require('daisyui')]
 }

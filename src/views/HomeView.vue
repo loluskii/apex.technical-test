@@ -1,36 +1,30 @@
 <script setup>
-import { getPayments, makePayments } from '@/helpers'
-import DataTable from '@/components/Payments/DataTable.vue'
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow
-} from '@/components/ui/table'
+import DataTable from '@/components/DataTable.vue'
+import { makePayments } from '@/helpers'
+import { ref } from 'vue'
+import emitter from '@/helpers/emitter.js'
 
-const invoices = [
-  {
-    invoice: 'ChiekoChute Annabel Rohan',
-    email: 'ChiekoChute@gmail.com',
-    paymentStatus: 'Last Login: 12 Feb, 2024',
-    totalAmount: 'Paid on: 12 Feb, 2024',
-    paymentMethod: 'Credit Card'
-  },
-  {
-    invoice: 'ChiekoChute Annabel Rohan',
-    email: 'ChiekoChute@gmail.com',
-    paymentStatus: 'Last Login: 12 Feb, 2024',
-    totalAmount: 'Paid on: 12 Feb, 2024',
-    paymentMethod: 'Credit Card'
+const mode = ref('All')
+const modes = ['All', 'Paid', 'Unpaid', 'Overdue']
+const paymentIds = ref([])
+
+const addPayment = (data) => (paymentIds.value = data)
+
+const getPayments = async (data) => {
+  let payload = {
+    payments: paymentIds.value
   }
-]
+  try {
+    const res = await makePayments(payload)
+    if (res.message && res.message === 'success') {
+      
+    }
+  } catch (error) {}
+}
 </script>
 
 <template>
-  <main class="content bg-[#f1f1f1] h-screen">
+  <main class="content h-full">
     <nav class="bg-white">
       <div class="relative flex items-center justify-between h-24 px-12">
         <a href="#" class="text-[24px] rounded-md px-3 py-2 font-[700]">Table Heading</a>
@@ -47,7 +41,7 @@ const invoices = [
         </div>
       </div>
     </nav>
-    <div class="main-content">
+    <div class="main-content mb-5 h-[calc(100vh - 96px)]">
       <div class="flex justify-between items-center mb-5">
         <div class="tab-list">
           <ul
@@ -57,42 +51,36 @@ const invoices = [
               <a
                 href="#"
                 aria-current="page"
-                class="inline-block p-4 bg-gray-100 rounded-t-lg dark:bg-gray-800 dark:text-blue-500 border-b-2 border-brand-primary text-brand-primary"
-                >All</a
+                v-for="m in modes"
+                class="inline-block p-4 rounded-t-lg border-b-2"
+                :class="mode === m ? 'border-brand-success text-brand-success' : ''"
+                @click.prevent="mode = m"
+                >{{ m }}</a
               >
-            </li>
-            <li class="me-2">
-              <a href="#" class="inline-block p-4 rounded-t-lg">Paid</a>
-            </li>
-            <li class="me-2">
-              <a href="#" class="inline-block p-4 rounded-t-lg">Unpaind</a>
-            </li>
-            <li class="me-2">
-              <a href="#" class="inline-block p-4 rounded-t-lg">Overdue</a>
             </li>
           </ul>
         </div>
         <a
           href="#"
-          class="bg-gray-900 text-white w-[254px] h-[56px] flex justify-center items-center rounded-md px-[20px] py-[8px] text-center text-sm font-bold"
+          class="bg-brand-success text-white w-[254px] h-[56px] flex justify-center items-center rounded-md px-[20px] py-[8px] text-center font-bold"
           aria-current="page"
+          @click.prevent="getPayments"
           >Pay Dues</a
         >
       </div>
-      <div class="card bg-white h-[100%] rounded-[16px]">
-        <DataTable />
+      <div class="card bg-white h-[100%] rounded-[16px] border-0">
+        <DataTable :mode="mode" @submit-payment="addPayment" />
       </div>
     </div>
   </main>
 </template>
 
 <style>
+body {
+  background-color: #fafafa;
+}
 .main-content {
   padding: 40px 53px 0 53px;
-}
-
-.card {
-  padding-top: 24px;
 }
 
 .dot {
